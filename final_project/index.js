@@ -11,22 +11,23 @@ app.use(express.json());
 app.use("/customer",session({secret:"fingerprint_customer",resave: true, saveUninitialized: true}))
 
 app.use("/customer/auth/*", function auth(req,res,next){
-   const authToken = req.headers.authorization;
-
-    if (authToken === "valid-token") {
-        console.log("User is authenticated.");
-
-        // Check the specific subpath
-        if (req.path === "/customer/auth/login") {
-            res.send({ message: "Login page accessed via middleware." });
-        } else if (req.path === "/customer/auth/profile") {
-            res.send({ message: "Profile page accessed via middleware." });
-        } else {
-            next(); // Pass control to other route handlers
-        }
+    // Check if user is authenticated
+    if (req.session.authorization) {
+        let token = req.session.authorization['accessToken']; // Access Token
+        
+        // Verify JWT token for user authentication
+        jwt.verify(token, "access", (err, user) => {
+            if (!err) {
+                req.user = user; // Set authenticated user data on the request object
+                next(); // Proceed to the next middleware
+            } else {
+                return res.status(403).json({ message: "User not authenticated" }); // Return error if token verification fails
+            }
+        });
+        
+        // Return error if no access token is found in the session
     } else {
-        console.log("Authentication failed.");
-        res.status(401).send({ error: "Unauthorized: Invalid token" });
+        return res.status(403).json({ message: "User not logged in" });
     }
 });
  
